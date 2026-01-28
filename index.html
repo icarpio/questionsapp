@@ -36,7 +36,7 @@ const result = document.getElementById("result");
 const timerDiv = document.getElementById("timer");
 
 document.getElementById("start").onclick = () => {
-    fetch(`http://127.0.0.1:8000/api9/questions/${num.value}/`)
+    fetch(`https://albertaapi.onrender.com/api9/questions/${num.value}/`)
         .then(r => r.json())
         .then(data => {
             questions = data;
@@ -92,7 +92,7 @@ function answer(selected) {
     const note = document.getElementById("note").value;
 
     // Guardar nota
-    fetch("http://127.0.0.1:8000/api9/save-note/", {
+    fetch("https://albertaapi.onrender.com/api9/save-note/", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
