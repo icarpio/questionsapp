@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Quiz Interactivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
+
+<h1 class="text-3xl font-bold mb-6">Quiz Interactivo</h1>
+
+<div class="mb-4">
+    <input id="num" type="number" value="5"
+           class="border p-2 rounded w-24 text-center">
+    <button id="start"
+            class="ml-2 bg-blue-500 text-white px-4 py-2 rounded">
+        Comenzar
+    </button>
+</div>
+
+<div id="timer" class="font-bold mb-4 hidden"></div>
+<div id="quiz" class="w-full max-w-lg bg-white p-6 rounded shadow"></div>
+<div id="result" class="w-full max-w-lg mt-6 hidden"></div>
+
+<script>
+let questions = [];
+let i = 0;
+let score = 0;
+let timer;
+const TIME = 90;
+const history = [];
+
+const quiz = document.getElementById("quiz");
+const result = document.getElementById("result");
+const timerDiv = document.getElementById("timer");
+
+document.getElementById("start").onclick = () => {
+    fetch(`https://albertaapi.onrender.com/api9/questions/${num.value}/`)
+        .then(r => r.json())
+        .then(data => {
+            questions = data;
+            i = 0;
+            score = 0;
+            history.length = 0;
+            result.classList.add("hidden");
+            timerDiv.classList.remove("hidden");
+            showQuestion();
+        });
+};
+
+function showQuestion() {
+    if (i >= questions.length) return showResults();
+
+    const q = questions[i];
+
+    quiz.innerHTML = `
+        <p class="font-semibold mb-2">Pregunta ${i + 1}</p>
+        <p class="mb-3">${q.question}</p>
+
+        <div class="grid gap-2 mb-4">
+            ${Object.entries(q.options).map(([k, v]) =>
+                `<button class="bg-blue-500 text-white p-2 rounded"
+                 onclick="answer('${k}')">${k}. ${v}</button>`
+            ).join("")}
+        </div>
+
+        <textarea id="note"
+            class="w-full border rounded p-2"
+            placeholder="Añade tus notas...">${q.notes || ""}</textarea>
+    `;
+    startTimer();
+}
+
+function startTimer() {
+    clearInterval(timer);
+    let t = TIME;
+    timerDiv.textContent = `Tiempo restante: ${t}s`;
+    timer = setInterval(() => {
+        t--;
+        timerDiv.textContent = `Tiempo restante: ${t}s`;
+        if (t <= 0) {
+            clearInterval(timer);
+            answer(null);
+        }
+    }, 1000);
+}
+
+function answer(selected) {
+    clearInterval(timer);
+    const q = questions[i];
+    const note = document.getElementById("note").value;
+
+    // Guardar nota
+    fetch("https://albertaapi.onrender.com/api9/save-note/", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            number: q.number,
+            notes: note
+        })
+    });
+
+    // Normalizar respuestas correctas
+    const correctAnswers = Array.isArray(q.correct_answer)
+        ? q.correct_answer
+        : [q.correct_answer];
+
+    if (correctAnswers.includes(selected)) score++;
+
+    history.push({
+        question: q.question,
+        selectedKey: selected || "Sin responder",
+        selectedText: q.options[selected] || "Sin responder",
+        correctKeys: correctAnswers,
+        correctTexts: correctAnswers.map(k => q.options[k]),
+        note
+    });
+
+    i++;
+    showQuestion();
+}
+
+function showResults() {
+    quiz.innerHTML = "";
+    timerDiv.classList.add("hidden");
+    result.classList.remove("hidden");
+
+    result.innerHTML = `<h2 class="text-xl font-bold mb-4">
+        Resultado: ${score}/${questions.length}</h2>`;
+
+    history.forEach((h, idx) => {
+        const isCorrect = h.correctKeys.includes(h.selectedKey);
+
+        result.innerHTML += `
+            <div class="border rounded p-3 mb-3">
+                <p><b>${idx + 1}.</b> ${h.question}</p>
+
+                <p>Tu respuesta:
+                    <span class="${isCorrect ? 'text-green-600' : 'text-red-600'}">
+                        ${h.selectedKey}
+                        ${h.selectedText !== "Sin responder" ? '. ' + h.selectedText : ''}
+                    </span>
+                </p>
+
+                <p>Correcta:
+                    <span class="text-green-700">
+                        ${h.correctKeys.join(", ")}.
+                        ${h.correctTexts.join(" | ")}
+                    </span>
+                </p>
+
+                <p class="text-sm text-gray-600">
+                    Notas: ${h.note || "-"}
+                </p>
+            </div>
+        `;
+    });
+}
+</script>
+</body>
+</html>
